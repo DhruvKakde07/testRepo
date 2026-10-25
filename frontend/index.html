@@ -1,95 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lambda UI Trigger</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #0f172a;
-      color: #f8fafc;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .card {
-      background-color: #1e293b;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      width: 100%;
-      max-width: 480px;
-      text-align: center;
-    }
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    button {
-      background-color: #3b82f6;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-      font-weight: 600;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    }
-    button:hover {
-      background-color: #2563eb;
-    }
-    button:disabled {
-      background-color: #64748b;
-      cursor: not-allowed;
-    }
-    #responseBox {
-      margin-top: 1.5rem;
-      padding: 1rem;
-      background-color: #0f172a;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      color: #38bdf8;
-      font-family: monospace;
-      text-align: left;
-      white-space: pre-wrap;
-      word-break: break-all;
-      min-height: 60px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless AWS Pipeline Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(56, 189, 248, 0.1);
+            color: #38bdf8;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        p {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #1d4ed8, #1e40af);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .response-container {
+            margin-top: 24px;
+            text-align: left;
+            display: none;
+        }
+
+        .response-container.active {
+            display: block;
+        }
+
+        .response-header {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        pre {
+            background: #090d16;
+            border: 1px solid #334155;
+            padding: 16px;
+            border-radius: 8px;
+            color: #4ade80;
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .error {
+            color: #f87171;
+            border-color: rgba(248, 113, 113, 0.3);
+        }
+    </style>
 </head>
 <body>
 
-  <div class="card">
-    <h1>AWS Lambda UI Controller</h1>
-    <button id="triggerBtn" onclick="triggerLambda()">Trigger Lambda Function</button>
-    <div id="responseBox">Click the button above to invoke your Lambda function...</div>
-  </div>
+    <div class="card">
+        <span class="badge">CI/CD Automated Deployment</span>
+        <h1>Serverless API Dashboard</h1>
+        <p>Click the button below to send a live request to your AWS Lambda backend via API Gateway.</p>
 
-  <script>
-    const API_ENDPOINT = "https://v49v53c4zc.execute-api.ap-south-1.amazonaws.com/Prod/api";
+        <button id="api-btn" class="btn" onclick="callLambdaApi()">Trigger Lambda Function</button>
 
-    async function triggerLambda() {
-      const btn = document.getElementById("triggerBtn");
-      const resBox = document.getElementById("responseBox");
+        <div id="response-box" class="response-container">
+            <div class="response-header">API Response</div>
+            <pre id="response-text">Waiting for request...</pre>
+        </div>
+    </div>
 
-      btn.disabled = true;
-      resBox.innerText = "Invoking Lambda function...";
+    <script>
+        // Replace this URL with your actual API Gateway Endpoint URL
+        const API_URL = 'YOUR_API_GATEWAY_ENDPOINT_URL';
 
-      try {
-        const response = await fetch(API_ENDPOINT);
-        const data = await response.json();
-        resBox.innerText = JSON.stringify(data, null, 2);
-      } catch (error) {
-        resBox.innerText = "Error triggering Lambda: " + error.message;
-      } finally {
-        btn.disabled = false;
-      }
-    }
-  </script>
+        async function callLambdaApi() {
+            const btn = document.getElementById('api-btn');
+            const responseBox = document.getElementById('response-box');
+            const responseText = document.getElementById('response-text');
+
+            // UI Feedback during request
+            btn.disabled = true;
+            btn.innerText = 'Calling Backend...';
+            responseBox.classList.add('active');
+            responseText.classList.remove('error');
+            responseText.innerText = 'Sending request to Lambda...';
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                responseText.innerText = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseText.classList.add('error');
+                responseText.innerText = `Error: ${error.message}\nCheck CORS policy or API URL.`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Trigger Lambda Function';
+            }
+        }
+    </script>
 
 </body>
 </html>
