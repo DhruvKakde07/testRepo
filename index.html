@@ -1,35 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Serverless Web App</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f4f4f9; }
-        button { padding: 10px 20px; font-size: 16px; background-color: #ff9900; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background-color: #e88b00; }
-        #response { margin-top: 20px; font-weight: bold; color: #333; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lambda UI Trigger</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background-color: #1e293b;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    button {
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    button:hover {
+      background-color: #2563eb;
+    }
+    button:disabled {
+      background-color: #64748b;
+      cursor: not-allowed;
+    }
+    #responseBox {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background-color: #0f172a;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      color: #38bdf8;
+      font-family: monospace;
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 60px;
+    }
+  </style>
 </head>
 <body>
-    <h1>Welcome to My Serverless AWS App</h1>
-    <p>Click the button below to invoke your backend Lambda function via API Gateway:</p>
-    <button id="invokeBtn">Call Backend Lambda</button>
-    <div id="response"></div>
 
-    <script>
-        document.getElementById('invokeBtn').addEventListener('click', async () => {
-            const responseDiv = document.getElementById('response');
-            responseDiv.innerText = "Loading...";
-            try {
-                // Replace this URL with your actual API Gateway endpoint after deployment
-                const res = await fetch('/api'); 
-                const data = await res.text();
-                responseDiv.innerText = data;
-            } catch (error) {
-                responseDiv.innerText = "Error calling backend: " + error.message;
-            }
-        });
-    </script>
+  <div class="card">
+    <h1>AWS Lambda UI Controller</h1>
+    <button id="triggerBtn" onclick="triggerLambda()">Trigger Lambda Function</button>
+    <div id="responseBox">Click the button above to invoke your Lambda function...</div>
+  </div>
+
+  <script>
+    const API_ENDPOINT = "https://v49v53c4zc.execute-api.ap-south-1.amazonaws.com/Prod/api";
+
+    async function triggerLambda() {
+      const btn = document.getElementById("triggerBtn");
+      const resBox = document.getElementById("responseBox");
+
+      btn.disabled = true;
+      resBox.innerText = "Invoking Lambda function...";
+
+      try {
+        const response = await fetch(API_ENDPOINT);
+        const data = await response.json();
+        resBox.innerText = JSON.stringify(data, null, 2);
+      } catch (error) {
+        resBox.innerText = "Error triggering Lambda: " + error.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+
 </body>
 </html>

@@ -1,12 +1,15 @@
 export const handler = async (event) => {
-    console.log("Received event:", JSON.stringify(event, null, 2));
-    
     return {
-        statusCode: 200,
-        headers: {
-            "Content-Type": "text/plain",
-            "Access-Control-Allow-Origin": "*" // Enables CORS for your frontend
-        },
-        body: "Hello from your AWS Lambda backend! Code deployed successfully via CodePipeline.",
+      statusCode: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
+      },
+      body: JSON.stringify({
+        message: "Hello from your AWS Lambda backend! Triggered directly from your HTML UI.",
+        timestamp: new Date().toISOString()
+      }),
     };
-};
+  };
