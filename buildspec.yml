@@ -1,12 +1,17 @@
 version: 0.2
-
 phases:
   install:
-    commands:
-      - echo "Nothing to install"
+    runtime-versions:
+      nodejs: 20
   build:
     commands:
-      - echo "Preparing static website files"
+      - echo "Building serverless application..."
+      - echo "Syncing frontend files..."
+  post_build:
+    commands:
+      - echo "Build completed on `date`"
 artifacts:
   files:
-    - '**/*'
+    - template.yaml
+    - frontend/**/*
+    - backend/**/*

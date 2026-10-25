@@ -3,24 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to My Static Site</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Serverless Web App</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f4f4f9; }
+        button { padding: 10px 20px; font-size: 16px; background-color: #ff9900; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #e88b00; }
+        #response { margin-top: 20px; font-weight: bold; color: #333; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Hello, World 707! 🚀</h1>
-            <p>This static website is deployed automatically using GitHub Actions.</p>
-        </header>
-        <main>
-            <section class="card">
-                <h2>About This Repo</h2>
-                <p>Managed via VS Code and powered by GitHub Pages.</p>
-            </section>
-        </main>
-        <footer>
-            <p>&copy; 2026 Dhruv Kakde</p>
-        </footer>
-    </div>
+    <h1>Welcome to My Serverless AWS App</h1>
+    <p>Click the button below to invoke your backend Lambda function via API Gateway:</p>
+    <button id="invokeBtn">Call Backend Lambda</button>
+    <div id="response"></div>
+
+    <script>
+        document.getElementById('invokeBtn').addEventListener('click', async () => {
+            const responseDiv = document.getElementById('response');
+            responseDiv.innerText = "Loading...";
+            try {
+                // Replace this URL with your actual API Gateway endpoint after deployment
+                const res = await fetch('/api'); 
+                const data = await res.text();
+                responseDiv.innerText = data;
+            } catch (error) {
+                responseDiv.innerText = "Error calling backend: " + error.message;
+            }
+        });
+    </script>
 </body>
 </html>
