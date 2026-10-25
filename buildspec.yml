@@ -1,14 +1,15 @@
 version: 0.2
 
 phases:
+  install:
+    runtime-versions:
+      nodejs: 20
   build:
     commands:
       - echo "Packaging SAM / CloudFormation template..."
       - aws cloudformation package --template-file template.yaml --s3-bucket codepipeline-ap-south-1-81ed13876dd9-4a32-b1fd-c2b38744425c --output-template-file packaged-template.yaml --region ap-south-1
-      
-      - echo "Deploying frontend to S3..."
-      - aws s3 sync frontend/ s3://mywebpage-frontendbucket-3akzjbbo5333
-
+      - echo "Packaging complete."
 artifacts:
   files:
     - packaged-template.yaml
+    - frontend/**/*
