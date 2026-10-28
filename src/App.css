@@ -3,9 +3,9 @@
   --card: #ffffff;
   --text: #1b2333;
   --muted: #5b667a;
+  --line: #e3e7ef;
   --accent: #3b5bdb;
-  --ok: #1b7f4b;
-  --err: #c92a2a;
+  --danger: #c92a2a;
   color-scheme: light dark;
 }
 
@@ -15,9 +15,9 @@
     --card: #1c212c;
     --text: #e8ecf4;
     --muted: #9aa5b8;
+    --line: #2b3242;
     --accent: #748ffc;
-    --ok: #51cf66;
-    --err: #ff8787;
+    --danger: #ff8787;
   }
 }
 
@@ -27,39 +27,57 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 16px;
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 32px 16px;
+}
+
 .card {
   width: 100%;
-  max-width: 420px;
-  padding: 28px 24px;
+  max-width: 520px;
+  padding: 24px;
   background: var(--card);
   border-radius: 16px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
 }
 
 h1 {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
 }
 
 .muted {
-  margin: 0 0 8px;
+  margin: 4px 0 0;
   color: var(--muted);
-  line-height: 1.5;
+  font-size: 0.9rem;
 }
 
-input {
+.add-row {
+  display: flex;
+  gap: 8px;
+}
+
+input[type="text"] {
+  flex: 1;
+  min-width: 0;
   padding: 12px;
   font-size: 1rem;
   color: inherit;
@@ -69,8 +87,8 @@ input {
 }
 
 button {
-  padding: 12px;
-  font-size: 1rem;
+  padding: 10px 16px;
+  font-size: 0.95rem;
   font-weight: 600;
   color: #fff;
   background: var(--accent);
@@ -80,19 +98,52 @@ button {
 }
 
 button:disabled {
-  opacity: 0.6;
-  cursor: wait;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.reply {
-  margin: 4px 0 0;
+button.secondary {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+button.danger {
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 6px 12px;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
   font-weight: 500;
 }
 
-.reply.done {
-  color: var(--ok);
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.reply.error {
-  color: var(--err);
+.list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.list li div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.list small {
+  color: var(--muted);
+  margin-top: 2px;
 }

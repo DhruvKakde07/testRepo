@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  React site (S3 + CloudFront), Lambda (Function URL) that runs only on user
-  activity, and a CodePipeline/CodeBuild CI/CD pipeline fed from GitHub.
+  React site (S3 + CloudFront) with Cognito login, an HTTP API (API Gateway)
+  in front of a Lambda that stores per-user items in DynamoDB, and a
+  CodePipeline/CodeBuild CI/CD pipeline fed from GitHub.
 
 Parameters:
   ProjectName:
@@ -96,14 +97,60 @@ Resources:
               StringEquals:
                 AWS:SourceArn: !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
 
+  # ------------------------------------------------------------------- Auth
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${ProjectName}-users"
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "${ProjectName}-web"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  # --------------------------------------------------------------- DynamoDB
+  ItemsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: itemId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: itemId
+          KeyType: RANGE
+
   # ----------------------------------------------------------------- Lambda
-  ActivityFunctionLogGroup:
+  ApiFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${ProjectName}-activity"
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-api"
       RetentionInDays: 14
 
-  ActivityFunctionRole:
+  ApiFunctionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -115,55 +162,121 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: ItemsTableAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                Resource: !GetAtt ItemsTable.Arn
 
-  ActivityFunction:
+  ApiFunction:
     Type: AWS::Lambda::Function
-    DependsOn: ActivityFunctionLogGroup
+    DependsOn: ApiFunctionLogGroup
     Properties:
-      FunctionName: !Sub "${ProjectName}-activity"
+      FunctionName: !Sub "${ProjectName}-api"
       Runtime: nodejs22.x
       Handler: index.handler
-      Role: !GetAtt ActivityFunctionRole.Arn
+      Role: !GetAtt ApiFunctionRole.Arn
       Timeout: 10
       MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ItemsTable
       # Placeholder only. The pipeline replaces this with lambda/index.mjs
       # from your repo on every push.
       Code:
         ZipFile: |
           exports.handler = async () => ({
-            statusCode: 200,
+            statusCode: 503,
             body: "Placeholder - replaced by the first pipeline run."
           });
 
-  ActivityFunctionUrl:
-    Type: AWS::Lambda::Url
+  # ------------------------------------------------------------ API Gateway
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
     Properties:
-      TargetFunctionArn: !GetAtt ActivityFunction.Arn
-      AuthType: NONE
+      Name: !Sub "${ProjectName}-api"
+      ProtocolType: HTTP
       # CORS is handled here, so index.mjs must not add CORS headers itself.
-      Cors:
+      CorsConfiguration:
         AllowOrigins:
           - !Sub "https://${Distribution.DomainName}"
           - http://localhost:5173
-        AllowMethods: [POST]
-        AllowHeaders: [content-type]
+        AllowMethods: [GET, POST, DELETE]
+        AllowHeaders: [authorization, content-type]
         MaxAge: 3600
 
-  FunctionUrlInvokeUrlPermission:
-    Type: AWS::Lambda::Permission
+  ApiAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
     Properties:
-      FunctionName: !Ref ActivityFunction
-      Action: lambda:InvokeFunctionUrl
-      Principal: "*"
-      FunctionUrlAuthType: NONE
+      ApiId: !Ref HttpApi
+      Name: cognito-jwt
+      AuthorizerType: JWT
+      IdentitySource:
+        - $request.header.Authorization
+      JwtConfiguration:
+        Audience:
+          - !Ref UserPoolClient
+        Issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
 
-  FunctionUrlInvokePermission:
+  ApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ApiFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  GetItemsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /items"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub "integrations/${ApiIntegration}"
+
+  AddItemRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /items"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub "integrations/${ApiIntegration}"
+
+  DeleteItemRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "DELETE /items/{id}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub "integrations/${ApiIntegration}"
+
+  HttpApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    DependsOn: [GetItemsRoute, AddItemRoute, DeleteItemRoute]
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  ApiInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref ActivityFunction
+      FunctionName: !Ref ApiFunction
       Action: lambda:InvokeFunction
-      Principal: "*"
-      InvokedViaFunctionUrl: true
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
 
   # --------------------------------------------------------------- Pipeline
   ArtifactBucket:
@@ -228,7 +341,7 @@ Resources:
               - Sid: UpdateLambdaCode
                 Effect: Allow
                 Action: lambda:UpdateFunctionCode
-                Resource: !GetAtt ActivityFunction.Arn
+                Resource: !GetAtt ApiFunction.Arn
 
   BuildProject:
     Type: AWS::CodeBuild::Project
@@ -251,9 +364,13 @@ Resources:
           - Name: DISTRIBUTION_ID
             Value: !Ref Distribution
           - Name: FUNCTION_NAME
-            Value: !Ref ActivityFunction
+            Value: !Ref ApiFunction
           - Name: VITE_API_URL
-            Value: !GetAtt ActivityFunctionUrl.FunctionUrl
+            Value: !GetAtt HttpApi.ApiEndpoint
+          - Name: VITE_USER_POOL_ID
+            Value: !Ref UserPool
+          - Name: VITE_USER_POOL_CLIENT_ID
+            Value: !Ref UserPoolClient
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
@@ -335,8 +452,14 @@ Outputs:
     Description: Your website
     Value: !Sub "https://${Distribution.DomainName}"
   ApiUrl:
-    Description: Lambda Function URL (called only on user activity)
-    Value: !GetAtt ActivityFunctionUrl.FunctionUrl
+    Description: API Gateway endpoint (requires a signed-in user)
+    Value: !GetAtt HttpApi.ApiEndpoint
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
+  TableName:
+    Value: !Ref ItemsTable
   PipelineName:
     Value: !Ref Pipeline
   SiteBucketName:
